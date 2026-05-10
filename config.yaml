@@ -1,0 +1,26 @@
+audio:
+  beep_volume: 0.1
+  device: null
+  sample_rate: 16000
+hotkeys:
+  push_to_talk: alt+`
+  quit: ctrl+shift+q
+  switch_device: ctrl+shift+d
+  switch_mode: ctrl+shift+v
+  switch_model: ctrl+shift+m
+language: en
+mode: push_to_talk
+model: small
+text_processing:
+  add_trailing_space: true
+  collapse_repeated_words: true
+  enabled: true
+  ensure_sentence_spacing: true
+  fix_capitalization: true
+  informal_to_formal: true
+  newline_commands: false
+  punctuation_commands: false
+  remove_fillers: true
+vad:
+  silence_duration: 1.0
+  speech_threshold: 2.0

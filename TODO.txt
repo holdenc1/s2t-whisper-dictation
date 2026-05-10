@@ -1,0 +1,14 @@
+Future Enhancements
+===================
+
+[ ] CUDA GPU Support
+    - Install PyTorch with CUDA: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+    - Will significantly speed up transcription, especially for longer recordings
+    - Requires NVIDIA GPU with CUDA support
+
+[ ] Voice Activation Mode (VAD)
+    - Currently implemented but not fully tested
+    - Uses Silero VAD for speech detection
+
+[ ] Clipboard paste option
+    - Alternative to typing for faster insertion of long text

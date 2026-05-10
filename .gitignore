@@ -1,0 +1,42 @@
+# Virtual environments
+venv/
+venv_cuda/
+.venv/
+env/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build / distribution
+build/
+dist/
+*.egg
+
+# Runtime logs (created by the app at runtime)
+output.log
+startup.log
+test_pythonw.log
+
+# Whisper / HuggingFace caches (in case anyone caches inside the repo)
+.cache/
+models/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS junk
+Thumbs.db
+Desktop.ini
+nul

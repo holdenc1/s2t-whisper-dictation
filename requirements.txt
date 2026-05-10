@@ -1,0 +1,9 @@
+faster-whisper>=1.0.0
+sounddevice>=0.4.6
+numpy>=1.24.0
+keyboard>=0.13.5
+pyautogui>=0.9.54
+pyperclip>=1.8.2
+pyyaml>=6.0
+torch>=2.0.0
+torchaudio>=2.0.0
