@@ -56,6 +56,9 @@ class TextProcessingConfig:
 class Config:
     model: str = "medium"
     language: Optional[str] = "en"
+    # Names and terms Whisper should expect, spelled as they should be pasted
+    # (passed to faster-whisper as hotwords).
+    vocabulary: list[str] = field(default_factory=list)
     mode: str = "push_to_talk"  # "push_to_talk" or "voice_activation"
     hotkeys: HotkeyConfig = field(default_factory=HotkeyConfig)
     audio: AudioConfig = field(default_factory=AudioConfig)
@@ -80,10 +83,14 @@ class Config:
             audio.sample_rate = WHISPER_SAMPLE_RATE
         vad = VADConfig(**data.get("vad", {}))
         text_processing = TextProcessingConfig(**data.get("text_processing", {}))
+        vocabulary = data.get("vocabulary") or []
+        if isinstance(vocabulary, str):  # hand-typed "WBTO, AMWIC" instead of a list
+            vocabulary = vocabulary.split(",")
 
         return cls(
             model=data.get("model", "small"),
             language=data.get("language", "en"),
+            vocabulary=[str(w).strip() for w in vocabulary if str(w).strip()],
             mode=data.get("mode", "push_to_talk"),
             hotkeys=hotkeys,
             audio=audio,
@@ -95,6 +102,7 @@ class Config:
         data = {
             "model": self.model,
             "language": self.language,
+            "vocabulary": self.vocabulary,
             "mode": self.mode,
             "hotkeys": {
                 "push_to_talk": self.hotkeys.push_to_talk,

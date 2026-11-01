@@ -350,6 +350,17 @@ class MainWindow(ctk.CTk):
                     "Pinning the language is faster and more accurate when you "
                     "always speak the same language.")
 
+        row = self._row(parent, "Word List:")
+        self.vocab_var = ctk.StringVar(value=", ".join(self.config.vocabulary))
+        entry = ctk.CTkEntry(row, textvariable=self.vocab_var, width=380)
+        entry.pack(side="left", padx=5)
+        add_tooltip(entry,
+                    "Names and terms Whisper should expect, separated by commas,\n"
+                    "spelled the way you want them pasted. Example:\n"
+                    "  WBTO, AMWIC, AMRAC, Clackamas\n"
+                    "Helps with acronyms and names Whisper does not know.\n"
+                    "Keep it to a few dozen words.")
+
     # ---- Audio ----
 
     def _build_audio_tab(self, parent):
@@ -562,6 +573,7 @@ class MainWindow(ctk.CTk):
         new.model = self.model_var.get()
         lang = self.lang_var.get()
         new.language = None if lang == "auto" else lang
+        new.vocabulary = [w.strip() for w in self.vocab_var.get().split(",") if w.strip()]
         new.mode = self.mode_var.get()
         new.audio.device = self._selected_device()
         new.audio.beep_volume = float(self.beep_var.get())
@@ -594,6 +606,7 @@ class MainWindow(ctk.CTk):
     def _reload_from_config(self):
         self.model_var.set(self.config.model)
         self.lang_var.set(self.config.language or "auto")
+        self.vocab_var.set(", ".join(self.config.vocabulary))
         self.mode_var.set(self.config.mode)
         current_label = next(
             (label for label, idx in self._device_options if idx == self.config.audio.device),

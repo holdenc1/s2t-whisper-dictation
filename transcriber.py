@@ -16,8 +16,10 @@ class Transcriber:
         device: str = "cuda",
         compute_type: str = "float16",
         language: Optional[str] = "en",
+        vocabulary: Optional[list[str]] = None,
     ):
         self.model_size = model_size
+        self.vocabulary = list(vocabulary or [])
         self.device = device if torch.cuda.is_available() else "cpu"
         # Adjust compute type for CPU - float16 is not efficiently supported
         if self.device == "cpu" and compute_type == "float16":
@@ -62,10 +64,15 @@ class Transcriber:
         # near-silence comes back as invented text ("Thank you.", "Thanks for
         # watching!" from 4 of 5 sub-second clips, Oct 2026 log) that then gets
         # pasted. With no speech found, no segments come back.
+        # The word list goes in as hotwords, which are added to every 30-second
+        # window, so they also cover long clips. Tested 2026-11-01 on medium:
+        # "MWIC" became AMWIC and "Amrak" became AMRAC, with no list words
+        # leaking into other speech or silence.
         segments, info = self._model.transcribe(
             audio,
             language=self.language,
             vad_filter=True,
+            hotwords=", ".join(self.vocabulary) or None,
         )
 
         # Combine all segments into a single text

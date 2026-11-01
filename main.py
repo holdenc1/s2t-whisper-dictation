@@ -31,6 +31,7 @@ class SpeechToText:
             device="cuda",
             compute_type="float16",
             language=self.config.language,
+            vocabulary=self.config.vocabulary,
         )
         self.typer = TextTyper()
 

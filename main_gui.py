@@ -126,6 +126,7 @@ class SpeechToTextGUI:
             device="cuda",
             compute_type="float16",
             language=self.config.language,
+            vocabulary=self.config.vocabulary,
         )
         self.typer = TextTyper()
 
@@ -457,6 +458,8 @@ class SpeechToTextGUI:
             self.tray.set_model(new.model)
         if new.language != old.language:
             self.transcriber.language = new.language
+        if new.vocabulary != old.vocabulary:
+            self.transcriber.vocabulary = list(new.vocabulary)
 
         hotkey_changed = (
             new.hotkeys.push_to_talk != old.hotkeys.push_to_talk
@@ -530,6 +533,7 @@ class SpeechToTextGUI:
                 print("[init] loading model")
                 self._splash_status(f"Loading Whisper model ({self.config.model})…")
                 self.transcriber._load_model()
+                print(f"[init] word list: {', '.join(self.config.vocabulary) or 'none'}")
 
                 print("[init] starting audio stream")
                 self._splash_status("Starting audio stream…")
