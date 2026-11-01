@@ -115,7 +115,7 @@ from main_window import MainWindow, SplashScreen
 from text_processor import process_text
 from transcriber import Transcriber
 from tray_icon import TrayIcon
-from typer import TextTyper
+from typer import RESTORE_DELAY, TextTyper
 
 
 class SpeechToTextGUI:
@@ -265,6 +265,7 @@ class SpeechToTextGUI:
                 break
             self._set_status("processing")
             self._processing = True
+            restore_clipboard = None
             try:
                 duration = len(audio) / self.config.audio.sample_rate
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Transcribing {duration:.1f}s...")
@@ -289,7 +290,7 @@ class SpeechToTextGUI:
                     print(f"  done in {took:.2f}s, pasting {len(text.split())} words")
                     release_modifiers()
                     time.sleep(0.05)
-                    self.typer.paste(text)
+                    restore_clipboard = self.typer.paste_and_defer_restore(text)
                     self._post_transcript(text)
                 else:
                     print(f"  done in {took:.2f}s, no speech")
@@ -298,6 +299,11 @@ class SpeechToTextGUI:
             finally:
                 self._processing = False
                 self._set_status("idle")
+            if restore_clipboard:
+                # Waited out here, after the talk key is live again, so the
+                # delay that protects slow apps never blocks the next dictation.
+                time.sleep(RESTORE_DELAY)
+                restore_clipboard()
 
     def _enqueue(self, audio: np.ndarray):
         if len(audio) == 0:
