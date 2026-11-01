@@ -1,5 +1,10 @@
 from typing import Optional
 import numpy as np
+# Keep this import. The code only calls torch.cuda.is_available(), but importing
+# torch also puts torch\lib on the DLL search path, and that folder holds the
+# cuBLAS and cuDNN DLLs CTranslate2 needs for the GPU. Unless those come from
+# somewhere else (a CUDA toolkit on PATH, or the nvidia-*-cu12 pip packages),
+# removing this line breaks GPU transcription.
 import torch
 from faster_whisper import WhisperModel
 

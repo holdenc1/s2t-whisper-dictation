@@ -213,6 +213,8 @@ hotkeys:
   quit: ctrl+shift+q
 ```
 
+In the window version only `push_to_talk` and `quit` are live. Switch the model or the mic from the tray menu or the window: Ctrl+Shift+M and Ctrl+Shift+D also fire in other apps (VS Code's Problems panel, Chrome's "bookmark all tabs"), so a stray press used to switch and save the setting. The command-line version (`main.py`) still uses all five.
+
 **Important**: the original default was `ctrl+`​`, but that collides with Claude Code Desktop / VS Code's "Open Terminal" shortcut — when used in those apps, pressing the hotkey opens the terminal panel and steals focus, so the transcription pastes into the terminal instead of the chat input. Changed to `alt+`​`, which is free. Other safe alternatives if Alt collides with anything in your workflow: `scroll lock`, `pause`, `f13` (if your keyboard has it).
 
 ---
@@ -243,7 +245,7 @@ hotkeys:
 - **Claude Code Desktop / VS Code**: don't use `ctrl+`​` as the PTT key — collides with the built-in "Toggle Terminal" shortcut. Use `alt+`​` (current default) or a non-modifier key.
 - **Microphone list**: by default the UI filters to **WASAPI-only** devices so you see one entry per physical mic. Without that filter, PortAudio enumerates every mic once per host API (MME, DirectSound, WASAPI, WDM-KS) which gives ~4× too many entries.
 - **First model load is slow** — Whisper downloads weights from HuggingFace. Subsequent launches use the cached weights and start in a few seconds.
-- **Console hidden under pythonw.exe**: all output goes to `startup.log` in the project folder. If anything misbehaves, that's the first place to look.
+- **Console hidden under pythonw.exe**: all output goes to `startup.log` in the project folder. If anything misbehaves, that's the first place to look. It records each clip's length and how long Whisper took, not your words; those stay in the window's Recent Transcriptions list.
 - **Window placement on multi-monitor setups**: the window is re-centered on the primary monitor each launch (otherwise Tk would remember a position on a since-disconnected monitor).
 
 ---

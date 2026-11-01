@@ -266,8 +266,10 @@ class SpeechToTextGUI:
             self._processing = True
             try:
                 duration = len(audio) / self.config.audio.sample_rate
-                print(f"[Transcribing {duration:.1f}s...]")
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Transcribing {duration:.1f}s...")
+                started = time.perf_counter()
                 text = self.transcriber.transcribe(audio, sample_rate=self.config.audio.sample_rate)
+                took = time.perf_counter() - started
 
                 if text.strip():
                     if self.config.text_processing.enabled:
@@ -281,13 +283,15 @@ class SpeechToTextGUI:
                             "add_trailing_space": self.config.text_processing.add_trailing_space,
                             "collapse_repeated_words": self.config.text_processing.collapse_repeated_words,
                         })
-                    print(f"[Typing: {text}]")
+                    # Size and timing only: the words show in the window's Recent
+                    # Transcriptions list but are never written to startup.log.
+                    print(f"  done in {took:.2f}s, pasting {len(text.split())} words")
                     release_modifiers()
                     time.sleep(0.05)
                     self.typer.paste(text)
                     self._post_transcript(text)
                 else:
-                    print("[No speech detected]")
+                    print(f"  done in {took:.2f}s, no speech")
             except Exception as e:
                 print(f"Transcription error: {e}")
             finally:
@@ -408,9 +412,12 @@ class SpeechToTextGUI:
 
     def _register_hotkeys(self):
         keyboard.unhook_all()
+        # No global switch_model / switch_device keys. Their defaults are also
+        # VS Code's Problems panel (Ctrl+Shift+M) and Chrome's "bookmark all
+        # tabs" (Ctrl+Shift+D), and the hook does not block keys, so a press
+        # meant for those apps also switched and saved the model or the mic.
+        # The tray menu and the window do both jobs.
         try:
-            keyboard.add_hotkey(self.config.hotkeys.switch_model, self._switch_model)
-            keyboard.add_hotkey(self.config.hotkeys.switch_device, self._switch_device_dialog)
             keyboard.add_hotkey(self.config.hotkeys.quit, self._quit)
             if self.config.mode == "toggle_to_talk":
                 keyboard.add_hotkey(self.config.hotkeys.push_to_talk, self._toggle_record)
