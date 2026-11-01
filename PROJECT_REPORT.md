@@ -196,7 +196,7 @@ All settings live in `config.yaml` (created on first run with sensible defaults)
 | Tab | What's there |
 |---|---|
 | **Model** | Whisper model size (tiny/base/small/medium/large) and language (auto / en / es / fr / ...). |
-| **Audio** | Microphone (dropdown, filtered to WASAPI for one entry per real mic), sample rate (16000 recommended), beep volume. |
+| **Audio** | Microphone (dropdown, filtered to WASAPI for one entry per real mic), beep volume. Audio is always captured at 16 kHz, the rate Whisper needs; Windows converts each mic's own rate. |
 | **Mode & VAD** | Recording mode (push_to_talk / toggle_to_talk / voice_activation), VAD speech threshold and silence duration sliders. |
 | **Text** | Master enable + 8 sub-toggles: remove fillers, punctuation commands, newline commands, informal→formal, fix capitalization, ensure sentence spacing, add trailing space, collapse repeated words. |
 

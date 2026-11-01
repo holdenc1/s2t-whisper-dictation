@@ -15,6 +15,23 @@ def _wasapi_hostapi_index() -> Optional[int]:
     return None
 
 
+def wasapi_extra_settings(device: Optional[int]) -> Optional[sd.WasapiSettings]:
+    """Stream settings that let a WASAPI mic record at Whisper's 16 kHz.
+
+    In shared mode a WASAPI mic opens only at its own rate (48 kHz on every mic
+    tested 2026-11-01) and refuses 16 kHz with "Invalid sample rate".
+    auto_convert asks Windows to convert. Returns None for other host APIs (the
+    "Default" device is MME, which converts on its own), because PortAudio
+    rejects WASAPI settings on a non-WASAPI device."""
+    try:
+        idx = device if device is not None else sd.default.device[0]
+        if sd.query_devices(idx)["hostapi"] == _wasapi_hostapi_index():
+            return sd.WasapiSettings(auto_convert=True)
+    except Exception:
+        pass
+    return None
+
+
 def list_audio_devices(prefer_wasapi: bool = True):
     """List available audio input devices.
 

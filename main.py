@@ -19,7 +19,7 @@ from config import Config, AVAILABLE_MODELS
 from transcriber import Transcriber
 from typer import TextTyper
 from text_processor import process_text
-from audio import select_audio_device, select_audio_device_runtime
+from audio import select_audio_device, select_audio_device_runtime, wasapi_extra_settings
 from keystate import is_combo_pressed, release_modifiers
 
 
@@ -80,6 +80,7 @@ class SpeechToText:
             channels=1,
             dtype=np.float32,
             callback=self._audio_callback,
+            extra_settings=wasapi_extra_settings(self.config.audio.device),
         )
         self._stream.start()
 

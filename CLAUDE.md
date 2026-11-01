@@ -21,6 +21,9 @@ Windows-first, local speech-to-text tool using OpenAI's Whisper model. Uses `sou
 - `python -m compileall .`
 - `python -m pip check`
 
+### Tests (Automated)
+- `python -m unittest discover tests` (text cleanup rules). Keep automated tests in `tests/`: the root `test_*.py` scripts record from the mic as soon as they are imported.
+
 ### Tests (Manual/Smoke)
 - `python test_mic.py` (device listing + 3s recording)
 - `python test_ptt.py` (hold Space to record)

@@ -52,10 +52,15 @@ class Transcriber:
         if max_val > 1.0:
             audio = audio / max_val
 
-        # faster-whisper transcribe returns segments
+        # faster-whisper transcribe returns segments. vad_filter (off by default)
+        # runs the bundled Silero speech detector first: without it, a tap of
+        # near-silence comes back as invented text ("Thank you.", "Thanks for
+        # watching!" from 4 of 5 sub-second clips, Oct 2026 log) that then gets
+        # pasted. With no speech found, no segments come back.
         segments, info = self._model.transcribe(
             audio,
             language=self.language,
+            vad_filter=True,
         )
 
         # Combine all segments into a single text

@@ -70,7 +70,7 @@ import keyboard
 import numpy as np
 import sounddevice as sd
 
-from audio import list_audio_devices
+from audio import list_audio_devices, wasapi_extra_settings
 from config import Config
 from keystate import is_combo_pressed, release_modifiers
 from main_window import MainWindow, SplashScreen
@@ -149,15 +149,37 @@ class SpeechToTextGUI:
         if self._vad_active and not self._processing:
             self._process_vad_audio(indata.copy().flatten())
 
-    def _start_audio_stream(self):
-        self._stream = sd.InputStream(
+    def _open_stream(self, device: Optional[int]) -> sd.InputStream:
+        stream = sd.InputStream(
             samplerate=self.config.audio.sample_rate,
-            device=self.config.audio.device,
+            device=device,
             channels=1,
             dtype=np.float32,
             callback=self._audio_callback,
+            extra_settings=wasapi_extra_settings(device),
         )
-        self._stream.start()
+        try:
+            stream.start()
+        except Exception:
+            stream.close()
+            raise
+        return stream
+
+    def _start_audio_stream(self):
+        self._stream = self._open_stream(self.config.audio.device)
+
+    def _switch_audio_device(self, device: Optional[int]) -> bool:
+        """Open the new mic before closing the old one. If the new one will not
+        open, the old one keeps running and the caller saves nothing, so a bad
+        pick never reaches config.yaml, where it would fail every later launch."""
+        try:
+            new_stream = self._open_stream(device)
+        except Exception as e:
+            print(f"Could not open audio device {device}: {e}")
+            return False
+        self._stop_audio_stream()
+        self._stream = new_stream
+        return True
 
     def _stop_audio_stream(self):
         if self._stream:
@@ -310,10 +332,10 @@ class SpeechToTextGUI:
         except ValueError:
             current = 0
         new_idx = idxs[(current + 1) % len(idxs)]
+        if not self._switch_audio_device(new_idx):
+            return
         self.config.audio.device = new_idx
         self.config.save()
-        self._stop_audio_stream()
-        self._start_audio_stream()
         name = "Default" if new_idx is None else sd.query_devices(new_idx)["name"]
         print(f"[Audio device: {name}]")
 
@@ -377,6 +399,11 @@ class SpeechToTextGUI:
 
     def apply_config(self, new: Config):
         old = self.config
+        # Switch the mic before saving: one that will not open is dropped from
+        # the new config instead of being saved.
+        if new.audio.device != old.audio.device:
+            if not self._switch_audio_device(new.audio.device):
+                new.audio.device = old.audio.device
         self.config = new
         new.save()
 
@@ -385,11 +412,6 @@ class SpeechToTextGUI:
             self.tray.set_model(new.model)
         if new.language != old.language:
             self.transcriber.language = new.language
-
-        if (new.audio.device != old.audio.device
-                or new.audio.sample_rate != old.audio.sample_rate):
-            self._stop_audio_stream()
-            self._start_audio_stream()
 
         hotkey_changed = (
             new.hotkeys.push_to_talk != old.hotkeys.push_to_talk

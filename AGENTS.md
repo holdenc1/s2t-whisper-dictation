@@ -47,7 +47,8 @@ Notes:
 
 ### Tests
 
-- There is no automated unit test suite at the moment.
+- Automated: `python -m unittest discover tests` (text cleanup rules). Keep automated tests
+  in `tests/`: the root `test_*.py` scripts record from the mic as soon as they are imported.
 - Manual / smoke tests are script-based:
   - `python test_mic.py` (device listing + 3s recording)
   - `python test_ptt.py` (hold Space to record)

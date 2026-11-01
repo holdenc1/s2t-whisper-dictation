@@ -13,7 +13,6 @@ from audio import list_audio_devices
 from config import Config, AVAILABLE_MODELS
 
 LANGUAGES = ["auto", "en", "es", "fr", "de", "it", "pt", "nl", "ja", "zh", "ko", "ru", "ar", "hi"]
-SAMPLE_RATES = ["16000", "22050", "44100", "48000"]
 MODES = ["push_to_talk", "toggle_to_talk", "voice_activation"]
 PTT_HOTKEYS = [
     "alt+`",
@@ -375,15 +374,6 @@ class MainWindow(ctk.CTk):
                     "Windows default input. Pick a specific device if your default\n"
                     "is wrong or to lock to a particular mic.")
 
-        row = self._row(parent, "Sample Rate:")
-        self.sample_rate_var = ctk.StringVar(value=str(self.config.audio.sample_rate))
-        menu = ctk.CTkOptionMenu(row, variable=self.sample_rate_var, values=SAMPLE_RATES, width=120)
-        menu.pack(side="left", padx=5)
-        add_tooltip(menu,
-                    "Audio capture sample rate (Hz).\n"
-                    "16000 is what Whisper expects internally — recommended.\n"
-                    "Higher values just get downsampled and use more CPU.")
-
         row = self._row(parent, "Beep Volume:")
         self.beep_var = ctk.DoubleVar(value=self.config.audio.beep_volume)
         slider = ctk.CTkSlider(row, from_=0, to=1, variable=self.beep_var, width=240)
@@ -467,7 +457,9 @@ class MainWindow(ctk.CTk):
         opts = [
             (self.config.text_processing.remove_fillers, "remove_fillers",
              "Remove filler words (um, uh, etc.)",
-             "Strips common fillers: um, uh, er, ah, you know, basically, literally, actually."),
+             "Strips hesitation sounds: um, uh, er, erm, ah.\n"
+             "Real words such as 'actually' and 'you know' are kept, and so are\n"
+             "acronyms like ER."),
             (self.config.text_processing.punctuation_commands, "punctuation_commands",
              "Punctuation commands (\"period\" → \".\")",
              "Spoken commands become punctuation:\n"
@@ -488,8 +480,9 @@ class MainWindow(ctk.CTk):
              "Capitalizes the first letter of each sentence and standalone 'i' → 'I'."),
             (self.config.text_processing.ensure_sentence_spacing, "ensure_sentence_spacing",
              "Ensure space after . ! ?",
-             "Forces a space after every sentence-ending punctuation mark when\n"
-             "the next character is not whitespace. Fixes 'word.Next' → 'word. Next'."),
+             "Adds a missing space between two sentences: 'word.Next' → 'word. Next'.\n"
+             "Numbers (3.5, $1.50), web addresses (wbto.partners) and\n"
+             "abbreviations (a.m., e.g.) are left alone."),
             (self.config.text_processing.add_trailing_space, "add_trailing_space",
              "Add trailing space (separates consecutive dictations)",
              "Appends a space at the end of every transcription so that the next\n"
@@ -571,10 +564,6 @@ class MainWindow(ctk.CTk):
         new.language = None if lang == "auto" else lang
         new.mode = self.mode_var.get()
         new.audio.device = self._selected_device()
-        try:
-            new.audio.sample_rate = int(self.sample_rate_var.get())
-        except ValueError:
-            new.audio.sample_rate = 16000
         new.audio.beep_volume = float(self.beep_var.get())
         new.vad.speech_threshold = float(self.vad_threshold_var.get())
         new.vad.silence_duration = float(self.vad_silence_var.get())
@@ -598,6 +587,9 @@ class MainWindow(ctk.CTk):
             print(f"Error applying config: {e}")
             return
         self.config = new_config
+        # on_apply keeps the old mic if the new one would not open; show what
+        # is really in use rather than the pick that failed.
+        self._reload_from_config()
 
     def _reload_from_config(self):
         self.model_var.set(self.config.model)
@@ -608,7 +600,6 @@ class MainWindow(ctk.CTk):
             self._device_options[0][0],
         )
         self.device_var.set(current_label)
-        self.sample_rate_var.set(str(self.config.audio.sample_rate))
         self.beep_var.set(self.config.audio.beep_volume)
         ptt_values = list(PTT_HOTKEYS)
         current_ptt = self.config.hotkeys.push_to_talk

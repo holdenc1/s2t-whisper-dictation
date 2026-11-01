@@ -3,22 +3,21 @@
 import re
 
 
-# Filler words to remove (with word boundaries)
+# Hesitation sounds only. Real words (actually, basically, literally, "you
+# know") used to be here too: dropping them changed what was said, and "you
+# know" also matched inside "do you know". The first letter's case is spelled
+# out instead of using IGNORECASE so acronyms such as ER and UM are kept.
 FILLER_WORDS = [
-    r"\bum\b",
-    r"\buh\b",
-    r"\buhh\b",
-    r"\bumm\b",
-    r"\ber\b",
-    r"\berm\b",
-    r"\bah\b",
-    r"\bllike\b",  # "like" as filler (duplicate l to avoid removing valid "like")
-    r"\byou know\b",
-    r"\bbasically\b",
-    r"\bliterally\b",
-    r"\bactually\b",
-    r"\bso,\s*(?=so\b)",  # Remove repeated "so, so"
+    r"[Uu]m+",
+    r"[Uu]h+",
+    r"[Ee]rm",
+    r"[Ee]r",
+    r"[Aa]h",
 ]
+
+# A filler takes one following comma and its spaces with it ("So, um, I" ->
+# "So, I"). A hyphen next to it means a real word (uh-huh, uh-oh).
+_FILLER_RE = re.compile(r"(?<!-)\b(?:" + "|".join(FILLER_WORDS) + r")\b(?!-),?\s*")
 
 # Punctuation command replacements
 PUNCTUATION_COMMANDS = [
@@ -74,9 +73,11 @@ INFORMAL_REPLACEMENTS = [
 
 
 def remove_fillers(text: str) -> str:
-    """Remove filler words from text."""
-    for pattern in FILLER_WORDS:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+    """Remove hesitation sounds and the commas they leave behind."""
+    text = _FILLER_RE.sub("", text)
+    text = re.sub(r",(\s*,)+", ",", text)        # "So, , I" -> "So, I"
+    text = re.sub(r",\s*(?=[.!?]|$)", "", text)  # "I agree, ." -> "I agree."
+    text = re.sub(r"^\s*,\s*", "", text)         # comma left at the very start
     return text
 
 
@@ -105,8 +106,8 @@ def fix_spacing(text: str) -> str:
     """Fix spacing issues."""
     # Remove space before punctuation
     text = re.sub(r"\s+([.,!?;:])", r"\1", text)
-    # Ensure space after punctuation (except at end)
-    text = re.sub(r"([.,!?;:])([A-Za-z])", r"\1 \2", text)
+    # No "space after punctuation" rule here: it split config.yaml, wbto.partners
+    # and a.m. ensure_sentence_spacing() handles real sentence breaks.
     # Remove multiple spaces
     text = re.sub(r" +", " ", text)
     # Remove space at start of lines
@@ -117,9 +118,12 @@ def fix_spacing(text: str) -> str:
 
 
 def ensure_sentence_spacing(text: str) -> str:
-    """Force a single space after sentence-ending punctuation when followed by
-    any non-space character (letter, digit, opening quote, etc.)."""
-    return re.sub(r"([.!?])(?=[^\s])", r"\1 ", text)
+    """Add a missing space between two sentences: 'word.Next' -> 'word. Next'.
+
+    Fires only on a lowercase letter or digit, then . ! or ?, then a capital
+    letter that starts a word. Numbers (0.010, $1.50), addresses (wbto.partners,
+    config.yaml) and abbreviations (a.m., e.g., U.S.) are left alone."""
+    return re.sub(r"(?<=[a-z0-9][.!?])(?=[A-Z](?:[a-z]|\b))", " ", text)
 
 
 def collapse_repeated_words(text: str) -> str:
@@ -133,15 +137,17 @@ def capitalize_sentences(text: str) -> str:
     def cap_match(match):
         return match.group(1) + match.group(2).upper()
 
-    # After sentence-ending punctuation
-    text = re.sub(r"([.!?]\s+)([a-z])", cap_match, text)
+    # After sentence-ending punctuation, but not after an abbreviation with
+    # inner periods (a.m., e.g., U.S.) or an ellipsis, where the sentence
+    # usually goes on. Whisper capitalizes real sentence starts itself.
+    text = re.sub(r"(?<!\.\w)(?<!\.\.)([.!?]\s+)([a-z])", cap_match, text)
     # After newline
     text = re.sub(r"(\n\s*)([a-z])", cap_match, text)
     # Capitalize first character
     if text and text[0].islower():
         text = text[0].upper() + text[1:]
-    # Capitalize "I" as standalone word
-    text = re.sub(r"\bi\b", "I", text)
+    # Capitalize "I" as a standalone word, but not the i in "i.e."
+    text = re.sub(r"\bi\b(?!\.\w)", "I", text)
     return text
 
 

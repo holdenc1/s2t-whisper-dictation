@@ -9,6 +9,11 @@ CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
 AVAILABLE_MODELS = ["tiny", "base", "small", "medium", "large"]
 
+# Whisper takes 16 kHz audio and nothing in the app resamples, so any other
+# capture rate garbles every transcript. Windows converts each mic's own rate
+# (see wasapi_extra_settings in audio.py).
+WHISPER_SAMPLE_RATE = 16000
+
 
 @dataclass
 class HotkeyConfig:
@@ -21,7 +26,7 @@ class HotkeyConfig:
 
 @dataclass
 class AudioConfig:
-    sample_rate: int = 16000
+    sample_rate: int = WHISPER_SAMPLE_RATE
     device: Optional[int] = None
     beep_volume: float = 0.3  # 0.0 to 1.0
 
@@ -69,6 +74,10 @@ class Config:
 
         hotkeys = HotkeyConfig(**data.get("hotkeys", {}))
         audio = AudioConfig(**data.get("audio", {}))
+        if audio.sample_rate != WHISPER_SAMPLE_RATE:
+            print(f"[config] sample_rate {audio.sample_rate} would garble transcripts; "
+                  f"using {WHISPER_SAMPLE_RATE}")
+            audio.sample_rate = WHISPER_SAMPLE_RATE
         vad = VADConfig(**data.get("vad", {}))
         text_processing = TextProcessingConfig(**data.get("text_processing", {}))
 
