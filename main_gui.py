@@ -63,6 +63,44 @@ def _hide_console():
         pass
 
 
+_INSTANCE_MUTEX_NAME = "Local\\S2T_SpeechToTextGUI"
+_ERROR_ALREADY_EXISTS = 183
+_instance_mutex = None  # handle kept open for the life of the process
+
+
+def _already_running() -> bool:
+    """True if another copy of the GUI already holds the named Windows mutex.
+
+    Two copies both hear the hotkey and both paste, so every dictation lands
+    twice. Windows frees the mutex when the process exits, crash included, so
+    there is no stale lock file that could block a fresh launch."""
+    global _instance_mutex
+    try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateMutexW.restype = ctypes.c_void_p
+        kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+        ctypes.set_last_error(0)
+        _instance_mutex = kernel32.CreateMutexW(None, False, _INSTANCE_MUTEX_NAME)
+        return ctypes.get_last_error() == _ERROR_ALREADY_EXISTS
+    except Exception:
+        return False
+
+
+# Must run before _setup_logging(), which truncates startup.log — a second
+# launch should not wipe the running copy's log.
+if __name__ == "__main__" and _already_running():
+    try:
+        ctypes.windll.user32.MessageBoxW(
+            None,
+            "Speech to Text is already running.\nLook for its icon in the system tray.",
+            "Speech to Text",
+            0x40 | 0x10000 | 0x40000,  # MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST
+        )
+    except Exception:
+        pass
+    sys.exit(0)
+
+
 _setup_logging()
 _hide_console()
 
