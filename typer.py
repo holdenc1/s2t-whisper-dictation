@@ -82,6 +82,14 @@ _kernel32.GlobalSize.restype = ctypes.c_size_t
 _kernel32.GlobalFree.argtypes = [wintypes.HGLOBAL]
 _kernel32.GlobalFree.restype = wintypes.HGLOBAL
 
+_user32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+_user32.GetClassNameW.restype = ctypes.c_int
+_user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+_user32.SendMessageW.restype = wintypes.LPARAM
+
+_WM_COMMAND = 0x0111
+_CONSOLE_PASTE = 0xFFF1  # conhost's Edit > Paste menu command
+
 _CF_DIB = 8
 _CF_UNICODETEXT = 13
 _CF_HDROP = 15
@@ -135,6 +143,21 @@ def get_foreground_exe() -> Optional[str]:
         return None
     finally:
         _kernel32.CloseHandle(handle)
+
+
+def _foreground_console_window() -> Optional[int]:
+    """The foreground window if it is a classic console window (conhost), else
+    None. Its keyboard paste shortcuts are unreliable: when the program inside
+    reads raw keys (Claude Code and other TUIs turn on VT input), Ctrl+V and
+    Shift+Insert reach that program as key presses and nothing is pasted.
+    Measured 2026-11-03."""
+    hwnd = _user32.GetForegroundWindow()
+    if not hwnd:
+        return None
+    cls = ctypes.create_unicode_buffer(64)
+    if _user32.GetClassNameW(hwnd, cls, 64) and cls.value == "ConsoleWindowClass":
+        return hwnd
+    return None
 
 
 def _paste_hotkey_for_target() -> str:
@@ -245,7 +268,8 @@ def paste_text(text: str) -> Callable[[], None]:
       (see _KEEP_FORMATS), not just its plain text.
     - Polls until the clipboard actually holds the new text before sending
       the paste keystroke (avoids racing the OS clipboard sync).
-    - Picks Ctrl+Shift+V for terminal emulators where Ctrl+V is unreliable.
+    - Picks Ctrl+Shift+V for terminal emulators where Ctrl+V is unreliable,
+      and the menu Paste command for classic console windows.
     - Uses keyboard.send() rather than pyautogui.hotkey() — keyboard tracks
       modifier state on Windows more reliably across windows/TUIs.
     - The returned restore does nothing if anything new was copied meanwhile.
@@ -272,8 +296,13 @@ def paste_text(text: str) -> Callable[[], None]:
         return _do_nothing
 
     ours = _user32.GetClipboardSequenceNumber()
-    hotkey = _paste_hotkey_for_target()
-    keyboard.send(hotkey)
+    console = _foreground_console_window()
+    if console:
+        # The console's own Edit > Paste menu command pastes as text whatever
+        # mode the program inside has set.
+        _user32.SendMessageW(console, _WM_COMMAND, _CONSOLE_PASTE, 0)
+    else:
+        keyboard.send(_paste_hotkey_for_target())
 
     def restore() -> None:
         # The sequence number changes on every clipboard write, so a mismatch
