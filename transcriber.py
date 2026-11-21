@@ -1,3 +1,4 @@
+import time
 from typing import Optional
 import numpy as np
 # Keep this import. The code only calls torch.cuda.is_available(), but importing
@@ -7,6 +8,8 @@ import numpy as np
 # removing this line breaks GPU transcription.
 import torch
 from faster_whisper import WhisperModel
+
+from word_list_check import hotwords_text, same_words, word_list_leak
 
 
 class Transcriber:
@@ -66,18 +69,47 @@ class Transcriber:
         # pasted. With no speech found, no segments come back.
         # The word list goes in as hotwords, which are added to every 30-second
         # window, so they also cover long clips. Tested 2026-11-01 on medium:
-        # "MWIC" became AMWIC and "Amrak" became AMRAC, with no list words
-        # leaking into other speech or silence.
+        # "MWIC" became AMWIC and "Amrak" became AMRAC. But Whisper sometimes
+        # writes the list back in place of real speech (10 of 110 clips of
+        # Chris's own mic, 2026-11-21), so a result that looks like the list
+        # is run again without it. See word_list_check.py. The same test found
+        # the list sometimes makes Whisper return nothing for clear speech
+        # (2 of 166 clips) that it hears fine without the list, so an empty
+        # result is also run again when the speech detector kept 2 seconds or
+        # more (its padding alone is 0.8 s, so an "um" or a cough stays out).
+        # The log line says when this happens, never what was said.
+        hotwords = hotwords_text(self.vocabulary)
+        text, heard = self._decode(audio, hotwords)
+        if hotwords:
+            leak = word_list_leak(text, self.vocabulary)
+            if leak or (not text and heard >= 2.0):
+                started = time.perf_counter()
+                plain, _ = self._decode(audio, None)
+                took = time.perf_counter() - started
+                if not leak:
+                    print(f"  word list check: nothing came back from {heard:.1f}s of speech; "
+                          f"ran again without the list ({took:.2f}s)")
+                    text = plain
+                elif leak == "whole" and same_words(text, plain):
+                    print(f"  word list check: ran again without the list ({took:.2f}s); "
+                          "same words, so the list spelling stays")
+                else:
+                    print(f"  word list check: Whisper wrote the list back ({leak}); "
+                          f"ran again without it ({took:.2f}s) and pasting that")
+                    text = plain
+        return text
+
+    def _decode(self, audio: np.ndarray, hotwords: Optional[str]) -> tuple[str, float]:
+        """One Whisper pass. Returns all segments joined into one string, and
+        the seconds of audio the speech detector kept."""
         segments, info = self._model.transcribe(
             audio,
             language=self.language,
             vad_filter=True,
-            hotwords=", ".join(self.vocabulary) or None,
+            hotwords=hotwords,
         )
-
-        # Combine all segments into a single text
-        text = " ".join(segment.text for segment in segments)
-        return text.strip()
+        text = " ".join(segment.text for segment in segments).strip()
+        return text, info.duration_after_vad
 
     def transcribe_with_info(
         self, audio: np.ndarray, sample_rate: int = 16000
